@@ -1,4 +1,11 @@
 # Logs
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+unused_workerMap.js
+RegisterPath.js
 logs
 *.log
 npm-debug.log*
@@ -7,7 +14,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+/node_modules
 dist
 dist-ssr
 *.local
