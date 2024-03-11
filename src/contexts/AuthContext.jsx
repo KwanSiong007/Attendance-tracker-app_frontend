@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { auth } from "../firebase";
+import axios from "axios";
+import { BACKEND_URL } from "../constants/BackendUrl";
 
 const AuthContext = createContext();
 
@@ -13,8 +15,12 @@ export const AuthProvider = ({ children }) => {
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((userAuth) => {
-      setUser(userAuth);
+    const unsubscribe = auth.onAuthStateChanged(async (userAuth) => {
+      const userID = userAuth.uid;
+      const response = await axios.get(`${BACKEND_URL}/workers/${userID}`);
+      const user = response.data;
+      setUser(user);
+      console.log("user:", user);
       setLoadingAuth(false);
     });
 

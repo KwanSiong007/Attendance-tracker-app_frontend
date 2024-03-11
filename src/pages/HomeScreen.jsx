@@ -11,14 +11,10 @@ import {
   Typography,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import { reAuth, logOut } from "../api/authentication";
-// import { ref, get } from "firebase/database";
-// import { database } from "../firebase";
+import { logOut } from "../api/authentication";
 
 import { useAuth } from "../contexts/AuthContext";
-// import WorkerScreen from "./WorkerScreen";
-// import DB_KEY from "../constants/dbKey";
-// import ROLE from "../constants/role";
+import WorkerScreen from "./WorkerScreen";
 
 const theme = createTheme({
   breakpoints: {
@@ -46,33 +42,7 @@ const theme = createTheme({
 function HomeScreen() {
   const { user, setUser, loadingAuth } = useAuth();
   console.log("user:", user);
-  //const [role, setRole] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
-
-  useEffect(() => {
-    const checkIfLoggedIn = (user) => {
-      console.log("user:", user);
-      if (user) {
-        setUser(user);
-      }
-    };
-
-    reAuth(checkIfLoggedIn);
-  }, [setUser]);
-
-  /*useEffect(() => {
-    const fetchRole = async () => {
-      const profileRef = ref(database, `${DB_KEY.PROFILES}/${user.uid}`);
-      const snapshot = await get(profileRef);
-
-      const profile = snapshot.val();
-      setRole(profile.role);
-    };
-
-    if (user) {
-      fetchRole();
-    }
-  }, [user]);*/
 
   const handleSignOut = async () => {
     await logOut();
@@ -102,15 +72,14 @@ function HomeScreen() {
               Attendance Tracker
             </Typography>
             <Typography variant="body1" style={{ marginRight: 10 }}>
-              {user.displayName}
+              {user.worker_name}
             </Typography>
             <Avatar
-              //src={user.photoURL}
               onClick={handleAvatarClick}
               style={{ cursor: "pointer" }}
               variant="square"
             >
-              {user.displayName ? user.displayName.charAt(0).toUpperCase() : ""}
+              {user.worker_name ? user.worker_name.charAt(0).toUpperCase() : ""}
             </Avatar>
             <Popover
               open={open}
@@ -139,7 +108,7 @@ function HomeScreen() {
           }}
         >
           <ThemeProvider theme={theme}>
-            {/* {<WorkerScreen workerId={user.uid} />} */}
+            {<WorkerScreen workerId={user.user_id} user={user} />}
           </ThemeProvider>
         </Box>
       </>

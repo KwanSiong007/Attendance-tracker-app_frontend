@@ -5,6 +5,7 @@
 .env.test.local
 .env.production.local
 unused_workerMap.js
+unused.WorkerScreen.jsx
 RegisterPath.js
 logs
 *.log

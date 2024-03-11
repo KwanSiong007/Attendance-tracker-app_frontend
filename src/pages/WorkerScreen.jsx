@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, React } from "react";
 import {
   Box,
   Button,
@@ -9,9 +9,12 @@ import {
 import { point } from "@turf/helpers";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 
-// import WorkerButton from "../components/WorkerButton";
-// import WorkerAttendance from "../components/WorkerAttendance";
-// import WorkerMap from "../components/WorkerMap";
+import { BACKEND_URL } from "../constants/BackendUrl";
+import axios from "axios";
+
+import WorkerButton from "../components/WorkerButton";
+import WorkerMap from "../components/WorkerMap";
+import dayjs from "dayjs";
 
 import {
   format,
@@ -28,17 +31,8 @@ import { utcToZonedTime } from "date-fns-tz";
 
 const TIME_ZONE = "Asia/Singapore";
 
-//import { showCurrDate, buildKey } from "../utils";
 const showCurrDate = (dateObj) => {
   return format(utcToZonedTime(dateObj, TIME_ZONE), "EEE, d MMM");
-};
-
-const extractDate = (dateObj) => {
-  return format(utcToZonedTime(dateObj, TIME_ZONE), "yyyy-MM-dd");
-};
-
-const buildKey = (userId, dateObj) => {
-  return `${userId}_${extractDate(dateObj)}`;
 };
 
 const WORKER_BUTTON_TYPE = {
@@ -63,115 +57,115 @@ const ATTENDANCE_STATUS = {
   CHECKING_OUT: "checkingOut",
 };
 
-function WorkerScreen({ workerId }) {
+function WorkerScreen({ workerId, user }) {
+  console.log("workerId:", workerId);
+  console.log("user:", user);
+
   const [nowLoaded, setNowLoaded] = useState(null);
+  console.log("nowLoaded:", nowLoaded);
+  const [todaysDate, setTodaysDate] = useState(null);
+  console.log("todaysDate:", todaysDate);
   const [currDate, setCurrDate] = useState("");
-
-  // const [worksites, setWorksites] = useState([]);
-
+  console.log("currDate:", currDate);
+  const [worksites, setWorksites] = useState([]);
+  console.log("worksites:", worksites);
   const [attendance, setAttendance] = useState([]);
+  console.log("attendance:", attendance);
+  //INITIALLY, BY DEFAULT: ATTENDANCE_STATUS IS LOADING
   const [attendanceStatus, setAttendanceStatus] = useState(
-    ATTENDANCE_STATUS.LOADING
+    ATTENDANCE_STATUS.CHECKED_OUT
   );
+  console.log("attendanceStatus:", attendanceStatus);
   const [checkedInSite, setCheckedInSite] = useState(null);
-  const [recordId, setRecordId] = useState(null);
+  console.log("checkedInSite:", checkedInSite);
 
   const [gpsStatus, setGpsStatus] = useState(GPS_STATUS.OFF);
+  console.log("gpsStatus:", gpsStatus);
   const [location, setLocation] = useState(null);
+  console.log("location:", location);
   const [gpsSite, setGpsSite] = useState(null);
+  console.log("gpsSite:", gpsSite);
 
   useEffect(() => {
-    const fetchWorksites = async () => {
-      const worksitesRef = ref(database, DB_KEY.WORKSITES);
-      const snapshot = await get(worksitesRef);
-      let fetchedWorksites = [];
-      snapshot.forEach((childSnapshot) => {
-        const row = childSnapshot.val();
-        fetchedWorksites.push({
-          name: row.name,
-          coordinates: row.coordinates,
-        });
-      });
-      setWorksites(fetchedWorksites);
-    };
-    fetchWorksites();
-  }, []);
+    const getAttendanceCurrDate = async () => {
+      try {
+        const userID = workerId;
+        const response = await axios.get(
+          `${BACKEND_URL}/attendance/getAttendanceCurrDate/${userID}/${todaysDate}`
+        );
+        console.log("response:", response);
+        console.log("response.data:", response.data);
+        //response.data is array, which have object inside it
+        const attendanceData = response.data;
+        setAttendance(attendanceData);
 
-  /*useEffect(() => {
-    const nowLoaded = new Date();
-    setNowLoaded(nowLoaded);
-    const searchKey = buildKey(workerId, nowLoaded);
-    setCurrDate(showCurrDate(nowLoaded));
-    const recordsRef = ref(database, DB_KEY.CHECK_INS);
-    const q = query(recordsRef, orderByChild("checkInKey"), equalTo(searchKey));
-
-    const unsubscribe = onValue(
-      q,
-      (snapshot) => {
-        let attendance = [];
-        let attendanceStatus = ATTENDANCE_STATUS.CHECKED_OUT;
-        let siteName = null;
-        let recordId = null;
-
-        snapshot.forEach((childSnapshot) => {
-          const row = childSnapshot.val();
-          attendance.push({
-            worksite: row.worksite,
-            checkInDateTime: row.checkInDateTime,
-            checkOutDateTime: row.checkOutDateTime,
-          });
-
-          if (!row.checkOutDateTime) {
-            attendanceStatus = ATTENDANCE_STATUS.CHECKED_IN;
-            siteName = row.worksite;
-            recordId = childSnapshot.key;
+        // Iterate over each object in attendanceData
+        attendanceData.forEach((data) => {
+          // Check if check_in_time exists and check_out_time is null
+          if (data.check_in_time && !data.check_out_time) {
+            console.log("data:", data);
+            setAttendanceStatus(ATTENDANCE_STATUS.CHECKED_IN);
+            setCheckedInSite(data.worksite);
           }
         });
-
-        const sortedAttendance = [...attendance].sort(
-          (a, b) =>
-            Date.parse(b.checkInDateTime) - Date.parse(a.checkInDateTime)
-        );
-
-        setAttendance(sortedAttendance);
-        setAttendanceStatus(attendanceStatus);
-        setCheckedInSite(siteName);
-        setRecordId(recordId);
-      },
-      {
-        onlyOnce: false,
+      } catch (error) {
+        console.error(error);
       }
-    );
+    };
+    getAttendanceCurrDate();
+  }, [workerId, todaysDate]);
 
-    return () => unsubscribe();
-  }, [workerId]);*/
+  useEffect(() => {
+    const nowLoaded = new Date();
+    setNowLoaded(nowLoaded);
+    setCurrDate(showCurrDate(nowLoaded));
+    // Format the current date using dayjs
+    const formattedDate = dayjs().format("YYYY-MM-DD");
+    setTodaysDate(formattedDate);
+    const getWorksites = async () => {
+      try {
+        const response = await axios.get(`${BACKEND_URL}/worksites`);
+        setWorksites(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    getWorksites();
+  }, []);
 
   const checkLocation = (lng, lat) => {
     const userPoint = point([lng, lat]);
-
-    for (let site of worksites) {
+    console.log("userPoint:", userPoint);
+    console.log("userPoint coordinates:", userPoint.geometry.coordinates);
+    for (const site of worksites) {
       const siteArea = {
-        type: "Polygon",
-        coordinates: [site.coordinates],
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: site.geometry.coordinates, // This should already be a  2D array
+        },
       };
-
+      console.log("siteArea:", siteArea);
+      console.log("siteArea coordinates:", siteArea.geometry.coordinates);
       if (booleanPointInPolygon(userPoint, siteArea)) {
-        setGpsSite(site.name);
+        setGpsSite(site.worksite_name);
+        console.log("site:", site);
         return site;
       }
     }
 
     setGpsSite(null);
+    setLocation(null);
     return null;
   };
 
   const locateWorker = async () => {
+    setGpsStatus(GPS_STATUS.REQUESTING);
     if (!("geolocation" in navigator)) {
       setGpsStatus(GPS_STATUS.NOT_SUPPORTED);
       throw new Error("Geolocation not supported");
     }
 
-    setGpsStatus(GPS_STATUS.REQUESTING);
     const permission = await navigator.permissions.query({
       name: "geolocation",
     });
@@ -187,6 +181,7 @@ function WorkerScreen({ workerId }) {
           const { longitude, latitude } = position.coords;
           setLocation({ lng: longitude, lat: latitude });
           const site = checkLocation(longitude, latitude);
+          console.log("site:", site);
           resolve(site);
         },
         (error) => {
@@ -203,25 +198,34 @@ function WorkerScreen({ workerId }) {
     });
   };
 
-  /*const writeCheckIn = (site) => {
-    const searchKey = buildKey(workerId, new Date());
-    const recordsRef = ref(database, DB_KEY.CHECK_INS);
-    const newRecordRef = push(recordsRef);
-
-    setAttendanceStatus(ATTENDANCE_STATUS.CHECKED_IN);
-    setRecordId(newRecordRef.key);
-    set(newRecordRef, {
-      userId: workerId,
-      checkInDateTime: new Date().toISOString(),
-      checkInKey: searchKey,
-      worksite: site.name,
-    });
+  const writeCheckIn = async (site) => {
+    console.log("user:", user);
+    console.log("todaysDate:", todaysDate);
+    const checkInTime = new Date().toISOString();
+    console.log("checkInTime:", checkInTime);
+    try {
+      setAttendanceStatus(ATTENDANCE_STATUS.CHECKED_IN);
+      setCheckedInSite(site.worksite_name);
+      await axios.post(`${BACKEND_URL}/attendance/writeCheckIn`, {
+        workerName: user.worker_name,
+        userID: user.user_id,
+        worksite: site.worksite_name,
+        department: user.department,
+        workerShift: user.worker_shift,
+        workday: todaysDate,
+        checkInTime: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  // Pass the prop, which is site to writeCheckIn function
   const handleCheckIn = async () => {
     setAttendanceStatus(ATTENDANCE_STATUS.CHECKING_IN);
     try {
       const site = await locateWorker();
+      console.log("site:", site);
       if (site) {
         writeCheckIn(site);
       } else {
@@ -233,20 +237,30 @@ function WorkerScreen({ workerId }) {
     }
   };
 
-  const writeCheckOut = () => {
-    const recordRef = ref(database, `${DB_KEY.CHECK_INS}/${recordId}`);
-    setAttendanceStatus(ATTENDANCE_STATUS.CHECKED_OUT);
-    setRecordId(null);
-    update(recordRef, {
-      checkOutDateTime: new Date().toISOString(),
-    });
+  const writeCheckOut = async () => {
+    try {
+      setAttendanceStatus(ATTENDANCE_STATUS.CHECKED_OUT);
+      console.log("userID:", user.user_id);
+      const checkOutTime = new Date().toISOString();
+      console.log("checkOutTime:", checkOutTime);
+      await axios.post(`${BACKEND_URL}/attendance/writeCheckOut`, {
+        workerName: user.worker_name,
+        userID: user.user_id,
+        department: user.department,
+        workerShift: user.worker_shift,
+        checkOutTime: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleCheckOut = async () => {
     setAttendanceStatus(ATTENDANCE_STATUS.CHECKING_OUT);
     try {
       const site = await locateWorker();
-      if (site?.name === checkedInSite) {
+      console.log("site:", site);
+      if (site?.worksite_name === checkedInSite) {
         writeCheckOut();
       } else {
         setAttendanceStatus(ATTENDANCE_STATUS.CHECKED_IN);
@@ -255,7 +269,7 @@ function WorkerScreen({ workerId }) {
       console.error("Error retrieving location:", error);
       setAttendanceStatus(ATTENDANCE_STATUS.CHECKED_IN);
     }
-  };*/
+  };
 
   const attendanceMsg = () => {
     switch (attendanceStatus) {
@@ -283,84 +297,79 @@ function WorkerScreen({ workerId }) {
           mb: 2,
         }}
       >
-        {attendanceStatus !== ATTENDANCE_STATUS.LOADING ? (
-          <>
-            <Box
-              width="100%"
-              sx={{
-                display: "flex",
-                flexDirection: { xs: "column", sm: "row" },
-                alignItems: { xs: "stretch", sm: "center" },
-                justifyContent: "center",
-                gap: { xs: 4, sm: 6 },
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 2,
-                  ml: 3,
-                }}
-              >
-                <Typography>{attendanceMsg()}</Typography>
-                {worksites.length &&
-                attendanceStatus === ATTENDANCE_STATUS.CHECKED_OUT ? (
-                  <WorkerButton
-                    buttonType={WORKER_BUTTON_TYPE.CHECK_IN}
-                    //handleHold={handleCheckIn}
-                  />
-                ) : worksites.length &&
-                  attendanceStatus === ATTENDANCE_STATUS.CHECKED_IN ? (
-                  <WorkerButton
-                    buttonType={WORKER_BUTTON_TYPE.CHECK_OUT}
-                    //handleHold={handleCheckOut}
-                  />
-                ) : (
-                  <Button
-                    variant="contained"
-                    disabled
-                    sx={{
-                      borderRadius: "50%",
-                      width: "160px",
-                      height: "160px",
-                      fontSize: "h5.fontSize",
-                      lineHeight: "1.5",
-                      textTransform: "none",
-                    }}
-                  >
-                    Loading...
-                  </Button>
-                )}
-              </Box>
-              <WorkerMap
-                worksites={worksites}
-                location={location}
-                gpsStatus={gpsStatus}
-                gpsSite={gpsSite}
-                checkedInSite={checkedInSite}
-                attendanceStatus={attendanceStatus}
-              />
-            </Box>
+        <>
+          <Box
+            width="100%"
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
+              justifyContent: "center",
+              gap: { xs: 4, sm: 6 },
+            }}
+          >
             <Box
               sx={{
-                width: "100%",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 gap: 2,
+                ml: 3,
               }}
             >
-              <Typography sx={{ alignSelf: "flex-start" }}>
-                Showing your check ins today ({currDate}):
-              </Typography>
-              <WorkerAttendance attendance={attendance} nowLoaded={nowLoaded} />
+              <Typography>{attendanceMsg()}</Typography>
+              {worksites.length &&
+              attendanceStatus === ATTENDANCE_STATUS.CHECKED_OUT ? (
+                <WorkerButton
+                  buttonType={WORKER_BUTTON_TYPE.CHECK_IN}
+                  handleHold={handleCheckIn}
+                />
+              ) : worksites.length &&
+                attendanceStatus === ATTENDANCE_STATUS.CHECKED_IN ? (
+                <WorkerButton
+                  buttonType={WORKER_BUTTON_TYPE.CHECK_OUT}
+                  handleHold={handleCheckOut}
+                />
+              ) : (
+                <Button
+                  variant="contained"
+                  disabled
+                  sx={{
+                    borderRadius: "50%",
+                    width: "160px",
+                    height: "160px",
+                    fontSize: "h5.fontSize",
+                    lineHeight: "1.5",
+                    textTransform: "none",
+                  }}
+                >
+                  Loading...
+                </Button>
+              )}
             </Box>
-          </>
-        ) : (
-          <CircularProgress />
-        )}
+            <WorkerMap
+              worksites={worksites}
+              location={location}
+              gpsStatus={gpsStatus}
+              gpsSite={gpsSite}
+              checkedInSite={checkedInSite}
+              attendanceStatus={attendanceStatus}
+            />
+          </Box>
+          <Box
+            sx={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <Typography sx={{ alignSelf: "flex-start" }}>
+              Showing your check ins today ({currDate}):
+            </Typography>
+          </Box>
+        </>
       </Box>
     </Container>
   );

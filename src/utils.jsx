@@ -14,14 +14,6 @@ import { styled } from "@mui/material/styles";
 
 const TIME_ZONE = "Asia/Singapore";
 
-export const extractDate = (dateObj) => {
-  return format(utcToZonedTime(dateObj, TIME_ZONE), "yyyy-MM-dd");
-};
-
-export const buildKey = (userId, dateObj) => {
-  return `${userId}_${extractDate(dateObj)}`;
-};
-
 export const showDate = (isoString) => {
   const parsed = parseISO(isoString);
   return `${format(parsed, "EEE, d")}\u00A0${format(parsed, "MMM")}`;

@@ -7,7 +7,30 @@ import axios from "axios";
 
 mapboxgl.accessToken = import.meta.env.VITE_APP_MAPBOX_KEY;
 
-function WorkerMap() {
+const GPS_STATUS = {
+  OFF: "off",
+  REQUESTING: "requesting",
+  ON: "on",
+  NOT_SUPPORTED: "notSupported",
+  DENIED: "denied",
+  ERROR: "error",
+};
+
+const ATTENDANCE_STATUS = {
+  LOADING: "loading",
+  CHECKED_IN: "checkedIn",
+  CHECKED_OUT: "checkedOut",
+  CHECKING_IN: "checkingIn",
+  CHECKING_OUT: "checkingOut",
+};
+
+function WorkerMap({
+  location,
+  gpsStatus,
+  gpsSite,
+  checkedInSite,
+  attendanceStatus,
+}) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -118,6 +141,62 @@ function WorkerMap() {
     });
   }, [worksites]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    const marker = markerRef.current;
+
+    if (location && map) {
+      const { lng, lat } = location;
+
+      const markerColor = () => {
+        switch (attendanceStatus) {
+          case ATTENDANCE_STATUS.LOADING:
+            return "grey";
+          case ATTENDANCE_STATUS.CHECKING_IN:
+            return "green";
+          case ATTENDANCE_STATUS.CHECKED_IN:
+            return "green";
+          case ATTENDANCE_STATUS.CHECKING_OUT:
+            return "grey";
+          case ATTENDANCE_STATUS.CHECKED_OUT:
+            return "grey";
+        }
+      };
+
+      if (marker) {
+        marker.remove();
+      }
+      markerRef.current = new mapboxgl.Marker({ color: markerColor() })
+        .setLngLat([lng, lat])
+        .addTo(mapRef.current);
+
+      map.flyTo({ center: [lng, lat], zoom: 15 });
+    }
+  }, [location, attendanceStatus]);
+
+  const gpsStatusMsg = () => {
+    switch (gpsStatus) {
+      case GPS_STATUS.REQUESTING:
+        return "Detecting location.";
+      case GPS_STATUS.ON:
+        if (!gpsSite) {
+          return "Your current location is not at a work site.";
+        } else if (checkedInSite && gpsSite !== checkedInSite) {
+          return `Your current location is ${gpsSite}. You must check out from ${checkedInSite}.`;
+        } else {
+          return `Your current location is ${gpsSite}.`;
+        }
+      case GPS_STATUS.NOT_SUPPORTED:
+        return "Location access not supported. Please use a compatible browser.";
+      case GPS_STATUS.DENIED:
+        return "Location access denied. Please grant access to confirm you're at a work site.";
+      case GPS_STATUS.ERROR:
+        return "Location access error. Please contact support.";
+      default:
+        return;
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -129,7 +208,7 @@ function WorkerMap() {
         mr: 3,
       }}
     >
-      {/* <Typography>{gpsStatusMsg()}</Typography> */}
+      <Typography>{gpsStatusMsg()}</Typography>
       <div
         ref={mapContainer}
         style={{
